@@ -25,6 +25,9 @@
     {# Menu principal #}
     {% include 'partials/_main_navbar.html.twig' %}
 
+    {# Affichage des messages flash #}
+    {% include "partials/_flashes.html.twig" %}
+
     {# Block body #}
     {% block body %}{% endblock %}
 
