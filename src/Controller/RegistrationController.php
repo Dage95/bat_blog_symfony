@@ -4,8 +4,10 @@ namespace App\Controller;
 
 use App\Entity\User;
 use App\Form\RegistrationFormType;
+use App\Recaptcha\RecaptchaValidator;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\Form\FormError;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
@@ -18,7 +20,7 @@ class RegistrationController extends AbstractController
      * Contrôleur de la page d'inscription
      */
     #[Route('/creer-un-compte/', name: 'app_register')]
-    public function register(Request $request, UserPasswordHasherInterface $userPasswordHasher, EntityManagerInterface $entityManager): Response
+    public function register(Request $request, UserPasswordHasherInterface $userPasswordHasher, EntityManagerInterface $entityManager, RecaptchaValidator  $recaptcha): Response
     {
         // Si l'utilisateur est déjà connecté : redirection vers l'accueil
         if($this->getUser()){
@@ -29,26 +31,42 @@ class RegistrationController extends AbstractController
         $form = $this->createForm(RegistrationFormType::class, $user);
         $form->handleRequest($request);
 
-        if ($form->isSubmitted() && $form->isValid()) {
+        if ($form->isSubmitted()){
 
-            // Hydratation du mot de pass avec le hashage du mot de passe venant du formulaire
-            $user->setPassword(
-                $userPasswordHasher->hashPassword(
-                    $user,
-                    $form->get('plainPassword')->getData()
-                )
-            );
+            // Récupération de $_POST["g-recaptcha-respsonse], sinon null
+            $captchaResponse = $request->request->get("g-recaptcha-response", null);
 
-            $user->setRegistrationDate( new \DateTime());
+            // Récupération de l'adresse IP du client
+            $ip = $request->server->get("REMOTE_ADDR");
 
-            $entityManager->persist($user);
-            $entityManager->flush();
-            // do anything else you need here, like send an email
+            // Si le captcha n'est pas valide : ajout d'une erreur au formulaire
+            if(!$recaptcha->verify($captchaResponse, $ip)){
+                $form->addError(new FormError("Veuillez remplir le captcha de sécurité ! VOIR PLUS BAS !"));
+            }
 
-            // Message flash de succès
-            $this->addFlash("success", "Votre compte à été créé avec succès !");
+            if($form->isValid()){
 
-            return $this->redirectToRoute('app_login');
+                // Hydratation du mot de pass avec le hashage du mot de passe venant du formulaire
+                $user->setPassword(
+                    $userPasswordHasher->hashPassword(
+                        $user,
+                        $form->get('plainPassword')->getData()
+                    )
+                );
+
+                $user->setRegistrationDate( new \DateTime());
+
+                $entityManager->persist($user);
+                $entityManager->flush();
+                // do anything else you need here, like send an email
+
+                // Message flash de succès
+                $this->addFlash("success", "Votre compte à été créé avec succès !");
+
+                return $this->redirectToRoute('app_login');
+
+            }
+
         }
 
         return $this->render('registration/register.html.twig', [
