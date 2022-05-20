@@ -3,9 +3,11 @@
 namespace App\Controller;
 
 use App\Entity\Article;
+use App\Form\EditPhotoFormType;
 use Doctrine\Persistence\ManagerRegistry;
 use Sensio\Bundle\FrameworkExtraBundle\Configuration\IsGranted;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 
@@ -43,6 +45,70 @@ class MainController extends AbstractController
     public function profil(): Response
     {
         return $this->render("main/profil.html.twig");
+    }
+
+
+    /**
+     * Contrôleur de la page de modification de la photo de profil
+     *
+     * Accès réservé aux connectés (ROLE_USER)
+     */
+    #[Route("/editer-photo/", name: "edit-photo")]
+    #[IsGranted("ROLE_USER")]
+    public function editPhoto(Request $request, ManagerRegistry $doctrine): Response
+    {
+        $form = $this->createForm(EditPhotoFormType::class);
+
+        $form->handleRequest($request);
+
+        //Si le formulaire a été envoyé et sans erreurs
+        if($form->isSubmitted() && $form->isValid()){
+
+            // Récupération des infos de la photo envoyée
+            $photo = $form->get("photo")->getData();
+
+            // Suppression de l'ancienne photo de profil
+            if(
+                $this->getUser()->getPhoto() != null &&
+                file_exists($this->getParameter("app.user.photo.directory") . $this->getUser()->getPhoto())
+            ){
+
+                unlink($this->getParameter("app.user.photo.directory") . $this->getUser()->getPhoto());
+
+            }
+
+            // Création d'un nouveau nom pour la photo (tant que le nom est déjà pris on en regénère un)
+            do{
+
+                $newFileName = md5(random_bytes(100)) . "." . $photo->guessExtension();
+
+            }while(file_exists($this->getParameter("app.user.photo.directory") . $newFileName));
+
+            // Sauvegarde du nom de la photo dans l'utilisateur connecté
+            $this->getUser()->setPhoto($newFileName);
+
+            // Sauvegarde en BDD
+            $em = $doctrine->getManager();
+            $em->flush();
+
+            // Déplacement physique de l'image dans lme dossier paramétré dans service.yaml
+            $photo->move(
+                $this->getParameter("app.user.photo.directory"),
+                $newFileName,
+            );
+
+            // Message flash de succès
+            $this->addFlash('success', "photo de profil modifiée avec succès !");
+
+            // Redirection
+            return $this->redirectToRoute("main_profil");
+
+        }
+
+        return $this->render("main/edit_photo.html.twig", [
+            "form"=> $form->createView(),
+        ]);
+
     }
 
 }
