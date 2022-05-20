@@ -141,4 +141,45 @@ class BlogController extends AbstractController
 
     }
 
+
+    /**
+     * Contrôleur de la page permettant de modifier un  article existant via son id passé dans l'url
+     *
+     * Accès reservé aux administrateurs (ROLE_ADMIN)
+     */
+    #[Route("/publication/modifier/{id}/", name: "publication_edit", priority: 10)]
+    #[IsGranted("ROLE_ADMIN")]
+    public function publicationEdit(Article $article, Request $request, ManagerRegistry $doctrine, SluggerInterface $slugger): Response
+    {
+
+        // Instanciation d'un nouveau formulaire basé sur $article qui contient déjà les données actuelles de l'article à modifier
+        $form = $this->createForm(NewArticleFormType::class, $article);
+
+        $form->handleRequest($request);
+
+        // Si le formulaire est envoyé et sans erreur
+        if($form->isSubmitted() && $form->isValid()){
+
+            // Sauvegarde des données modifiées en BDD
+            $article->setSlug($slugger->slug($article->getTitle())->lower());
+            $em = $doctrine->getManager();
+            $em->flush();
+
+            // Message flash de succès
+            $this->addFlash("success", "Publication modifiée avec succès");
+
+            // Redirection vers l'article modifié
+            return $this->redirectToRoute("blog_publication_view", [
+                "id"=>$article->getId(),
+                "slug"=>$article->getSlug(),
+            ]);
+
+        }
+
+        return $this->render("blog/publication_edit.html.twig", [
+            "form"=>$form->createView(),
+        ]);
+
+    }
+
 }
