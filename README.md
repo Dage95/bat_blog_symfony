@@ -33,7 +33,7 @@ symfony console assets:install public
 ```
 
 Les fixtures crééeront :
-* Un compte admin (email: a@a.a,  mdp: aaaaaaaaA11)
+* Un compte admin (email: a@a.a,  mdp: aaaaaaaA11)
 * 10 comptes utilisateurs (email aléatoire, mdp du compte admin)
 * 200 articles
 * Entre 0 et 10 commentaires par article

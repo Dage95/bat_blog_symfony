@@ -34,6 +34,9 @@ class NewArticleFormType extends AbstractType
             ])
             ->add('content', CKEditorType::class, [
                 "label"=>"Contenu",
+                "attr"=>[
+                    "class"=> "d-none",
+                ],
                 "purify_html"=>true,
                 "constraints"=>[
                     new NotBlank([
