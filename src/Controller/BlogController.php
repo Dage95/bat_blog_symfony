@@ -3,6 +3,8 @@
 namespace App\Controller;
 
 use App\Entity\Article;
+use App\Entity\Comment;
+use App\Form\AddCommentFormType;
 use App\Form\NewArticleFormType;
 use Doctrine\Persistence\ManagerRegistry;
 use Knp\Component\Pager\PaginatorInterface;
@@ -69,10 +71,53 @@ class BlogController extends AbstractController
      */
     #[Route("/publication/{id}/{slug}", name: "publication_view")]
     #[ParamConverter("article", options: ["mapping" => ["id"=>"id", "slug"=>"slug"]])]
-    public function publicationView(Article $article): Response
+    public function publicationView(Article $article, Request $request, ManagerRegistry $doctrine): Response
     {
+
+        // Si l'utilisateur n'est pas connecté, appel direct de la vue en lui envoyant seulement l'article à afficher
+        // On le fait pour éviter que le traitement du formulaire ne se fasse alors que la personne n'est pas connecté.
+        if(!$this->getUser()){
+            return $this->render("blog/publication_view.html.twig", [
+                "article"=>$article,
+            ]);
+        }
+
+        $comment = new Comment;
+
+        $form = $this->createForm(AddCommentFormType::class, $comment);
+
+        $form->handleRequest($request);
+
+        // Si le formulaire est envoyé et sans erreur
+        if ($form->isSubmitted() && $form->isValid()){
+
+            // Hydratation
+            $comment
+                ->setPublicationDate(new \DateTime())
+                ->setAuthor($this->getUser())
+                ->setArticle($article)
+            ;
+
+            // Sauvegarde en BDD
+            $em = $doctrine->getManager();
+            $em->persist($comment);
+            $em->flush();
+
+            // Message flash de succès
+            $this->addFlash("success", "Votre commentaire à été publié avec succès !");
+
+            // Réinitialisation des variables $form et $comment pour un nouveau formulaire vierge
+            unset($comment);
+            unset($form);
+
+            $comment = new Comment;
+            $form = $this->createForm(AddCommentFormType::class, $comment);
+
+        }
+
         return $this->render("blog/publication_view.html.twig", [
             "article"=>$article,
+            "form"=> $form->createView(),
         ]);
 
     }
@@ -84,7 +129,7 @@ class BlogController extends AbstractController
     #[Route("/publications/liste/", name:"publication_list")]
     public function publicationList(ManagerRegistry $doctrine, Request $request, PaginatorInterface $paginator): Response
     {
-        // Récuperation de $_GET["page"], page 1 si elle n'existe pas
+        // Recuperation de $_GET["page"], page 1 si elle n'existe pas
         $requestedPage = $request->query->getInt("page", 1);
 
         // Vérification que le nombre est positif
@@ -99,7 +144,7 @@ class BlogController extends AbstractController
         $articles = $paginator->paginate(
             $query,     // Requête créée juste avant
             $requestedPage,     // Page qu'on souhaite voir
-            10,     // Nombre d'article à afficher par page
+            10,     // Nombre d'articles à afficher par page
         );
 
         return $this->render("blog/publication_list.html.twig", [
@@ -109,9 +154,9 @@ class BlogController extends AbstractController
 
 
     /**
-     * Contrôleur de la page admin servant a supprimer un article via son id dans l'url
+     * Contrôleur de la page admin servant à supprimer un article via son id dans l'url
      *
-     * Accèes reservé au admins
+     * Accès réservé aux admins
      */
     #[Route("/publication/suppression/{id}/", name:"publication_delete", priority: 10)]
     #[IsGranted("ROLE_ADMIN")]
@@ -144,7 +189,7 @@ class BlogController extends AbstractController
     /**
      * Contrôleur de la page permettant de modifier un  article existant via son id passé dans l'url
      *
-     * Accès reservé aux administrateurs (ROLE_ADMIN)
+     * Accès réservé aux administrateurs (ROLE_ADMIN)
      */
     #[Route("/publication/modifier/{id}/", name: "publication_edit", priority: 10)]
     #[IsGranted("ROLE_ADMIN")]
@@ -156,7 +201,7 @@ class BlogController extends AbstractController
 
         $form->handleRequest($request);
 
-        // Si le formulaire est envoyé et sans erreur
+        // Si le formulaire est envoyé et sans erreurs
         if($form->isSubmitted() && $form->isValid()){
 
             // Sauvegarde des données modifiées en BDD
