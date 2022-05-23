@@ -65,10 +65,6 @@ class NewArticleFormType extends AbstractType
     {
         $resolver->setDefaults([
             'data_class' => Article::class,
-            // TODO: virer le novalidate
-            "attr"=>[
-                "novalidate"=>"novalidate",
-            ],
         ]);
     }
 }
