@@ -71,37 +71,8 @@ class BlogController extends AbstractController
     #[ParamConverter("article", options: ["mapping" => ["id"=>"id", "slug"=>"slug"]])]
     public function publicationView(Article $article): Response
     {
-
-//        $comment = new Comment();
-//
-//        $form = $this->createForm(CommentFormType::class, $comment);
-//
-//        $form->handleRequest($request);
-//
-//        if($form->isSubmitted() && $form->isValid()){
-//
-//            // Hydratation
-//            $comment
-//                ->setPublicationDate(new \DateTime())
-//                ->setAuthor($this->getUser())
-//                ->setArticle($article)
-//            ;
-//
-//            // Sauvegarde en BDD
-//            $em = $doctrine->getManager();
-//            $em->persist($comment);
-//            $em->flush();
-//
-//            // Message flash de succès
-//            $this->addFlash("success", "Votre commentaire à été publié avec succès !");
-
-        }
-
-
-
         return $this->render("blog/publication_view.html.twig", [
             "article"=>$article,
-//            "form"=>$form->createView(),
         ]);
 
     }
